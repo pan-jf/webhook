@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -47,51 +48,54 @@ var cfg Config
 
 // --------------------------------------------------------------------------------
 
-func runScript(item *WatchItem) (err error) {
+func runScript(item *WatchItem) (outStr string, err error) {
 	script := "./" + item.Script
 	out, err := exec.Command("bash", "-c", script).Output()
 	if err != nil {
 		log.Printf("Exec command failed: %s\n", err)
+		return err.Error(), err
 	}
 
 	log.Printf("Run %s output: %s\n", script, string(out))
-	return
+	return string(out), nil
 }
 
-func handleGithub(event Payload, cfg *Config) (err error) {
-	log.Printf("handleGithub\n")
+func handleGithub(event Payload, cfg *Config) (result string, err error) {
+	result = "miss"
 	for _, item := range cfg.Items {
 		if event.Repo.Url == item.Repo && strings.Contains(event.Ref, item.Branch) {
-			err = runScript(&item)
+			result, err = runScript(&item)
 			if err != nil {
 				log.Printf("run script error: %s\n", err)
 			}
 			break
 		}
 	}
+
 	return
 }
 
-func handleBitbucket(event Payload, cfg *Config) {
-	log.Printf("handleBitbucket\n")
-	changingBranches := make(map[string]bool)
-
-	for _, commit := range event.Commits {
-		changingBranches[commit.Branch] = true
-	}
-
-	repo := strings.TrimRight(event.CanonUrl+event.Repo.AbsoluteUrl, "/")
-
-	for _, item := range cfg.Items {
-		if strings.TrimRight(item.Repo, "/") == repo && changingBranches[item.Branch] {
-			runScript(&item)
-		}
-	}
-	return
-}
+// func handleBitbucket(event Payload, cfg *Config) {
+// 	changingBranches := make(map[string]bool)
+//
+// 	for _, commit := range event.Commits {
+// 		changingBranches[commit.Branch] = true
+// 	}
+//
+// 	repo := strings.TrimRight(event.CanonUrl+event.Repo.AbsoluteUrl, "/")
+//
+// 	for _, item := range cfg.Items {
+// 		if strings.TrimRight(item.Repo, "/") == repo && changingBranches[item.Branch] {
+// 			runScript(&item)
+// 		}
+// 	}
+// 	return
+// }
 
 func handle(w http.ResponseWriter, req *http.Request) {
-	defer req.Body.Close()
+	defer func() {
+		_ = req.Body.Close()
+	}()
 	decoder := json.NewDecoder(req.Body)
 	var event Payload
 	err := decoder.Decode(&event)
@@ -101,12 +105,14 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	}
 	log.Println("payload json decode success: ", event)
 
-	if event.CanonUrl == "https://bitbucket.org" {
-		handleBitbucket(event, &cfg)
-		return
-	}
+	var out string
+	// if event.CanonUrl == "https://bitbucket.org" {
+	// 	handleBitbucket(event, &cfg)
+	// 	return
+	// }
 
-	_ = handleGithub(event, &cfg)
+	out, _ = handleGithub(event, &cfg)
+	_, _ = fmt.Fprintf(w, out)
 }
 
 // --------------------------------------------------------------------------------
@@ -118,13 +124,13 @@ func main() {
 		return
 	}
 
-	cfgbuf, err := ioutil.ReadFile(os.Args[1])
+	cfgBuf, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		log.Println("Read config file failed:", err)
 		return
 	}
 
-	err = json.Unmarshal(cfgbuf, &cfg)
+	err = json.Unmarshal(cfgBuf, &cfg)
 	if err != nil {
 		log.Println("Unmarshal config failed:", err)
 		return
