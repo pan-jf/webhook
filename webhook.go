@@ -83,6 +83,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		_ = req.Body.Close()
 	}()
+	log.Println(req)
+	log.Println(req.Body)
 	decoder := json.NewDecoder(req.Body)
 	var event Payload
 	err := decoder.Decode(&event)
