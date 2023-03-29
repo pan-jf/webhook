@@ -41,6 +41,11 @@ type Payload struct {
 	Commits  []Commit   `json:"commits"`
 }
 
+type Response struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
+
 // --------------------------------------------------------------------------------
 
 var cfg Config
@@ -72,11 +77,6 @@ func handleGithub(event Payload, cfg *Config) (result string, err error) {
 	}
 
 	return
-}
-
-type Response struct {
-	Code int
-	Msg  string
 }
 
 func handle(w http.ResponseWriter, req *http.Request) {
