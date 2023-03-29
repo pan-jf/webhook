@@ -90,6 +90,7 @@ func handleBitbucket(event Payload, cfg *Config) {
 
 func handle(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
+	log.Printf("req.body:%s\n", req.Body)
 	decoder := json.NewDecoder(req.Body)
 
 	var event Payload
