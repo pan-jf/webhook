@@ -59,6 +59,7 @@ func runScript(item *WatchItem) (err error) {
 }
 
 func handleGithub(event Payload, cfg *Config) (err error) {
+	log.Printf("handleGithub\n")
 	for _, item := range cfg.Items {
 		if event.Repo.Url == item.Repo && strings.Contains(event.Ref, item.Branch) {
 			err = runScript(&item)
@@ -72,6 +73,7 @@ func handleGithub(event Payload, cfg *Config) (err error) {
 }
 
 func handleBitbucket(event Payload, cfg *Config) {
+	log.Printf("handleBitbucket\n")
 	changingBranches := make(map[string]bool)
 
 	for _, commit := range event.Commits {
@@ -90,22 +92,21 @@ func handleBitbucket(event Payload, cfg *Config) {
 
 func handle(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
-	log.Printf("req.body:%s\n", req.Body)
 	decoder := json.NewDecoder(req.Body)
-
 	var event Payload
 	err := decoder.Decode(&event)
 	if err != nil {
 		log.Printf("payload json decode failed: %s\n", err)
 		return
 	}
+	log.Println("payload json decode success: ", event)
 
 	if event.CanonUrl == "https://bitbucket.org" {
 		handleBitbucket(event, &cfg)
 		return
 	}
 
-	handleGithub(event, &cfg)
+	_ = handleGithub(event, &cfg)
 }
 
 // --------------------------------------------------------------------------------
