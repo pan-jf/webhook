@@ -88,14 +88,16 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	err := decoder.Decode(&event)
 	if err != nil {
 		log.Printf("payload json decode failed: %s\n", err)
+		response(w, err.Error(), err)
 		return
 	}
 	log.Println("payload json decode success: ", event)
 
-	var out string
+	out, err := handleGithub(event, &cfg)
+	response(w, out, err)
+}
 
-	out, err = handleGithub(event, &cfg)
-
+func response(w http.ResponseWriter, out string, err error) {
 	var res Response
 	if err != nil {
 		res.Code = http.StatusBadGateway
