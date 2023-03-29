@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -75,22 +74,10 @@ func handleGithub(event Payload, cfg *Config) (result string, err error) {
 	return
 }
 
-// func handleBitbucket(event Payload, cfg *Config) {
-// 	changingBranches := make(map[string]bool)
-//
-// 	for _, commit := range event.Commits {
-// 		changingBranches[commit.Branch] = true
-// 	}
-//
-// 	repo := strings.TrimRight(event.CanonUrl+event.Repo.AbsoluteUrl, "/")
-//
-// 	for _, item := range cfg.Items {
-// 		if strings.TrimRight(item.Repo, "/") == repo && changingBranches[item.Branch] {
-// 			runScript(&item)
-// 		}
-// 	}
-// 	return
-// }
+type Response struct {
+	Code int
+	Msg  string
+}
 
 func handle(w http.ResponseWriter, req *http.Request) {
 	defer func() {
@@ -106,13 +93,29 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	log.Println("payload json decode success: ", event)
 
 	var out string
-	// if event.CanonUrl == "https://bitbucket.org" {
-	// 	handleBitbucket(event, &cfg)
-	// 	return
-	// }
 
-	out, _ = handleGithub(event, &cfg)
-	_, _ = fmt.Fprintf(w, out)
+	out, err = handleGithub(event, &cfg)
+
+	var res Response
+	if err != nil {
+		res.Code = http.StatusBadGateway
+	} else {
+		res.Code = http.StatusOK
+	}
+	res.Msg = out
+
+	// 设置响应头
+	w.Header().Set("Content-Type", "application/json")
+
+	// 将 map 转换为 JSON 格式
+	jsonData, err := json.Marshal(res)
+	if err != nil {
+		log.Printf("result json marshal: %s\n", err)
+		return
+	}
+
+	// 将 JSON 数据写入响应体
+	_, _ = w.Write(jsonData)
 }
 
 // --------------------------------------------------------------------------------
